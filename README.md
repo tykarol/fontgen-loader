@@ -1,6 +1,6 @@
 ## `! This is a fork of DragonsInn/fontgen-loader with merged pull requests !`
 
-+ Fixed font output file generation to be consistent in time with same hash(important for long time caching)
++ Fixed font output file generation to be consistent in time with same hash(important for long term caching)
 
 
 # `fontgen-loader` - Bam, easy webfonts!
