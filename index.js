@@ -97,12 +97,16 @@ module.exports = function (content) {
         fontHeight: config.fontHeight || 1000, // Fixes conversion issues with small svgs
         codepoints: config.codepoints,
         templateOptions: {
-            baseClass: config.baseClass || 'icon',
+            baseSelector: config.baseClass || 'icon',
             classPrefix: 'classPrefix' in config ? config.classPrefix : 'icon-'
         },
         dest: '',
         writeFiles: false,
-        formatOptions: config.formatOptions || {}
+        formatOptions: config.formatOptions || {
+            ttf: {
+                ts: 0 // it's important to set timestamp to fixed value for ttf generation to have consistent output in time with same hash
+            }
+        }
     };
 
     // This originally was in the object notation itself.

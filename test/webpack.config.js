@@ -4,16 +4,16 @@ module.exports = {
     entry: "./entry.js",
     output: {
         filename: "bundle.js",
-        path: path.join(__dirname, 'build')
+        path: path.resolve(__dirname, 'dist')
     },
     module: {
         loaders: [
             {
                 test: /\.font\.(js|json)$/,
-                loader: "style!css!" + require.resolve("../")
+                loader: "style-loader!css-loader!" + require.resolve("../")
             }, {
                 test: /\.(woff|eot|ttf|svg)$/,
-                loader: "url"
+                loader: "url-loader"
             }
         ]
     }
