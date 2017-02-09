@@ -1,6 +1,6 @@
-var loaderUtils = require("loader-utils");
-var fontgen = require("webfonts-generator");
-var path = require("path");
+var loaderUtils = require('loader-utils');
+var fontgen = require('webfonts-generator');
+var path = require('path');
 var glob = require('glob');
 
 var mimeTypes = {
@@ -73,8 +73,8 @@ module.exports = function (content) {
 
     // Sanity check
     /*
-     if(typeof config.fontName != "string" || typeof config.files != "array") {
-     this.reportError("Typemismatch in your config. Verify your config for correct types.");
+     if(typeof config.fontName != 'string' || typeof config.files != 'array') {
+     this.reportError('Typemismatch in your config. Verify your config for correct types.');
      return false;
      }
      */
@@ -97,10 +97,10 @@ module.exports = function (content) {
         fontHeight: config.fontHeight || 1000, // Fixes conversion issues with small svgs
         codepoints: config.codepoints,
         templateOptions: {
-            baseClass: config.baseClass || "icon",
-            classPrefix: "classPrefix" in config ? config.classPrefix : "icon-"
+            baseClass: config.baseClass || 'icon',
+            classPrefix: 'classPrefix' in config ? config.classPrefix : 'icon-'
         },
-        dest: "",
+        dest: '',
         writeFiles: false,
         formatOptions: config.formatOptions || {}
     };
@@ -108,11 +108,11 @@ module.exports = function (content) {
     // This originally was in the object notation itself.
     // Unfortunately that actually broke my editor's syntax-highlighting...
     // ... what a shame.
-    if(typeof config.rename == "function") {
+    if(typeof config.rename == 'function') {
         fontconf.rename = config.rename;
     } else {
         fontconf.rename = function(f) {
-            return path.basename(f, ".svg");
+            return path.basename(f, '.svg');
         }
     }
 
@@ -128,15 +128,15 @@ module.exports = function (content) {
 
     // svgicons2svgfont stuff
     var keys = [
-        "fixedWidth",
-        "centerHorizontally",
-        "normalize",
-        "fontHeight",
-        "round",
-        "descent"
+        'fixedWidth',
+        'centerHorizontally',
+        'normalize',
+        'fontHeight',
+        'round',
+        'descent'
     ];
     for (var x in keys) {
-        if (typeof config[keys[x]] != "undefined") {
+        if (typeof config[keys[x]] != 'undefined') {
             fontconf[keys[x]] = config[keys[x]];
         }
     }
@@ -145,7 +145,7 @@ module.exports = function (content) {
     var self = this;
     var opts = this.options;
     var pub = (
-      opts.output.publicPath || "/"
+        opts.output.publicPath || '/'
     );
     var embed = !!params.embed;
 
@@ -161,24 +161,24 @@ module.exports = function (content) {
         for (var i in formats) {
             var format = formats[i];
             if (!embed) {
-                var filename = config.fileName || params.fileName || "[hash]-[fontname].[ext]";
+                var filename = config.fileName || params.fileName || '[hash]-[fontname].[ext]';
                 filename = filename
-                  .replace("[fontname]", fontconf.fontName)
-                  .replace("[ext]", format);
+                    .replace('[fontname]', fontconf.fontName)
+                    .replace('[ext]', format);
                 var url = loaderUtils.interpolateName(this,
-                  filename,
-                  {
-                      context: self.options.context || this.context,
-                      content: res[format]
-                  }
+                    filename,
+                    {
+                        context: self.options.context || this.context,
+                        content: res[format]
+                    }
                 );
                 urls[format] = (pub + url).replace(/\\/g, '/');
                 self.emitFile(url, res[format]);
             } else {
                 urls[format] = 'data:'
-                  + mimeTypes[format]
-                  + ';charset=utf-8;base64,'
-                  + (new Buffer(res[format]).toString('base64'));
+                    + mimeTypes[format]
+                    + ';charset=utf-8;base64,'
+                    + (new Buffer(res[format]).toString('base64'));
             }
         }
         cb(null, res.generateCss(urls));
