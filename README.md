@@ -1,5 +1,8 @@
 ## `! This is a fork of DragonsInn/fontgen-loader with merged pull requests !`
 
++ Fixed font output file generation to be consistent in time with same hash(important for long time caching)
+
+
 # `fontgen-loader` - Bam, easy webfonts!
 
 Have you faced this? You have 4 icons from FontAwesome, and 19 from Glyphicons, and maybe you are eying at another webfont's icons and wishing to use them?
