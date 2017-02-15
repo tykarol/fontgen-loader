@@ -58,6 +58,11 @@ function getFilesAndDeps(patterns, context) {
     };
 }
 
+function isFunction(functionToCheck) {
+    const getType = {};
+    return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
+}
+
 module.exports = function (content) {
     this.cacheable();
     var params = loaderUtils.parseQuery(this.query);
@@ -67,6 +72,9 @@ module.exports = function (content) {
     }
     catch (ex) {
         config = this.exec(content, this.resourcePath);
+        if (isFunction(config)) {
+            config = config(process.env);
+        }
     }
 
     config.__dirname = path.dirname(this.resourcePath);
