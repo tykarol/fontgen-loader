@@ -1,50 +1,47 @@
-var loaderUtils = require('loader-utils');
-var fontgen = require('webfonts-generator');
-var path = require('path');
-var glob = require('glob');
+let loaderUtils = require('loader-utils');
+let webFontsGenerator = require('webfonts-generator');
+let path = require('path');
+let glob = require('glob');
+let isUrl = require('is-url');
+let url = require('url');
 
-var mimeTypes = {
+let mimeTypes = {
     'eot': 'application/vnd.ms-fontobject',
     'svg': 'image/svg+xml',
     'ttf': 'application/x-font-ttf',
-    'woff': 'application/font-woff'
+    'woff': 'application/font-woff',
+    'woff2': 'font/woff2'
 };
 
-function absolute(from, to) {
-    if (arguments.length < 2) {
-        return function (to) {
-            return path.resolve(from, to);
-        };
-    }
-    return path.resolve(from, to);
-}
+function getFilesAndDeps (patterns, context) {
+    let files = [];
+    let filesDeps = [];
+    let directoryDeps = [];
 
-function getFilesAndDeps(patterns, context) {
-    var files = [];
-    var filesDeps = [];
-    var directoryDeps = [];
-
-    function addFile(file) {
+    function addFile (file) {
         filesDeps.push(file);
-        files.push(absolute(context, file));
+        files.push(path.resolve(context, file));
     }
 
-    function addByGlob(globExp) {
-        var globOptions = {cwd: context};
+    function addByGlob (globExp) {
+        let globOptions = {cwd: context};
 
-        var foundFiles = glob.sync(globExp, globOptions);
-        files = files.concat(foundFiles.map(absolute(context)));
+        let foundFiles = glob.sync(globExp, globOptions);
+        files = files.concat(foundFiles.map(file => {
+            return path.resolve(context, file);
+        }));
 
-        var globDirs = glob.sync(path.dirname(globExp) + '/', globOptions);
-        directoryDeps = directoryDeps.concat(globDirs.map(absolute(context)));
+        let globDirs = glob.sync(path.dirname(globExp) + '/', globOptions);
+        directoryDeps = directoryDeps.concat(globDirs.map(file => {
+            return path.resolve(context, file);
+        }));
     }
 
     // Re-work the files array.
     patterns.forEach(function (pattern) {
         if (glob.hasMagic(pattern)) {
             addByGlob(pattern);
-        }
-        else {
+        } else {
             addFile(pattern);
         }
     });
@@ -58,6 +55,12 @@ function getFilesAndDeps(patterns, context) {
     };
 }
 
+// Futureproof webpack option parsing
+function wpGetOptions (context) {
+    if (typeof context.query === 'string') return loaderUtils.getOptions(context);
+    return context.query;
+}
+
 function isFunction(functionToCheck) {
     const getType = {};
     return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
@@ -65,81 +68,75 @@ function isFunction(functionToCheck) {
 
 module.exports = function (content) {
     this.cacheable();
-    var params = loaderUtils.parseQuery(this.query);
-    var config;
+    let params = loaderUtils.getOptions(this) || {};
+    let config;
     try {
         config = JSON.parse(content);
-    }
-    catch (ex) {
+    } catch (ex) {
         config = this.exec(content, this.resourcePath);
         if (isFunction(config)) {
-            config = config(process.env);
+            config = config(params);
         }
     }
 
-    config.__dirname = path.dirname(this.resourcePath);
-
-    // Sanity check
-    /*
-     if(typeof config.fontName != 'string' || typeof config.files != 'array') {
-     this.reportError('Typemismatch in your config. Verify your config for correct types.');
-     return false;
-     }
-     */
-    var filesAndDeps = getFilesAndDeps(config.files, this.context);
+    let filesAndDeps = getFilesAndDeps(config.files, this.context);
     filesAndDeps.dependencies.files.forEach(this.addDependency.bind(this));
     filesAndDeps.dependencies.directories.forEach(this.addContextDependency.bind(this));
     config.files = filesAndDeps.files;
 
     // With everything set up, let's make an ACTUAL config.
-    var formats = config.types || ['eot', 'woff', 'ttf', 'svg'];
+    let formats = config.types || ['eot', 'woff', 'woff2', 'ttf', 'svg'];
     if (formats.constructor !== Array) {
         formats = [formats];
     }
 
-    var fontconf = {
+    let generatorConfiguration = {
         files: config.files,
         fontName: config.fontName,
         types: formats,
         order: formats,
-        fontHeight: config.fontHeight || 1000, // Fixes conversion issues with small svgs
-        codepoints: config.codepoints,
+        fontHeight: config.fontHeight || 1000, // Fixes conversion issues with small svgs,
+        codepoints: config.codepoints || {},
         templateOptions: {
-            baseSelector: config.baseClass || 'icon',
+            baseSelector: config.baseSelector || '.icon',
             classPrefix: 'classPrefix' in config ? config.classPrefix : 'icon-'
         },
         dest: '',
         writeFiles: false,
-        formatOptions: config.formatOptions || {
-            ttf: {
-                ts: 0 // it's important to set timestamp to fixed value for ttf generation to have consistent output in time with same hash
-            }
-        }
+        formatOptions: config.formatOptions || {}
     };
+
+    // Try to get additional options from webpack query string or font config file
+    Object.assign(generatorConfiguration, wpGetOptions(this));
+    Object.assign(generatorConfiguration, config);
 
     // This originally was in the object notation itself.
     // Unfortunately that actually broke my editor's syntax-highlighting...
     // ... what a shame.
-    if(typeof config.rename == 'function') {
-        fontconf.rename = config.rename;
+    if (typeof config.rename === 'function') {
+        generatorConfiguration.rename = config.rename;
     } else {
-        fontconf.rename = function(f) {
+        generatorConfiguration.rename = function (f) {
             return path.basename(f, '.svg');
-        }
+        };
     }
 
     if (config.cssTemplate) {
-        fontconf.cssTemplate = absolute(this.context, config.cssTemplate);
+        generatorConfiguration.cssTemplate = path.resolve(this.context, config.cssTemplate);
     }
 
-    for(var option in config.templateOptions) {
-        if(config.templateOptions.hasOwnProperty(option)) {
-            fontconf.templateOptions[option] = config.templateOptions[option];
+    if (config.cssFontsPath) {
+        generatorConfiguration.cssFontsPath = path.resolve(this.context, config.cssFontsPath);
+    }
+
+    for (let option in config.templateOptions) {
+        if (config.templateOptions.hasOwnProperty(option)) {
+            generatorConfiguration.templateOptions[option] = config.templateOptions[option];
         }
     }
 
     // svgicons2svgfont stuff
-    var keys = [
+    let keys = [
         'fixedWidth',
         'centerHorizontally',
         'normalize',
@@ -147,50 +144,68 @@ module.exports = function (content) {
         'round',
         'descent'
     ];
-    for (var x in keys) {
-        if (typeof config[keys[x]] != 'undefined') {
-            fontconf[keys[x]] = config[keys[x]];
+    for (let x in keys) {
+        if (typeof config[keys[x]] !== 'undefined') {
+            generatorConfiguration[keys[x]] = config[keys[x]];
         }
     }
 
-    var cb = this.async();
-    var self = this;
-    var opts = this.options;
-    var pub = (
-        opts.output.publicPath || '/'
-    );
-    var embed = !!params.embed;
+    let cb = this.async();
 
-    if (fontconf.cssTemplate) {
-        this.addDependency(fontconf.cssTemplate)
+    // Generate destination path for font files, dest option from options takes precedence
+    let opts = this.options || {};
+
+    let pub = (
+        generatorConfiguration.dest || (opts.output && opts.output.publicPath) || '/'
+    );
+    let embed = !!params.embed;
+
+    if (generatorConfiguration.cssTemplate) {
+        this.addDependency(generatorConfiguration.cssTemplate);
     }
 
-    fontgen(fontconf, function (err, res) {
+    if (generatorConfiguration.cssFontsPath) {
+        this.addDependency(generatorConfiguration.cssFontsPath);
+    }
+
+    webFontsGenerator(generatorConfiguration, (err, res) => {
         if (err) {
             return cb(err);
         }
-        var urls = {};
-        for (var i in formats) {
-            var format = formats[i];
+        let urls = {};
+        for (let i in formats) {
+            let format = formats[i];
             if (!embed) {
-                var filename = config.fileName || params.fileName || '[hash]-[fontname].[ext]';
+                let filename = config.fileName || params.fileName || '[hash]-[fontname].[ext]';
                 filename = filename
-                    .replace('[fontname]', fontconf.fontName)
+                    .replace('[fontname]', generatorConfiguration.fontName)
                     .replace('[ext]', format);
-                var url = loaderUtils.interpolateName(this,
+                let formatUrl = loaderUtils.interpolateName(this,
                     filename,
                     {
-                        context: self.options.context || this.context,
+                        context: this.options.context || this.context,
                         content: res[format]
                     }
                 );
-                urls[format] = (pub + url).replace(/\\/g, '/');
-                self.emitFile(url, res[format]);
+
+                if (isUrl(pub)) {
+                    urls[format] = url.resolve(pub, formatUrl);
+                } else {
+                    urls[format] = path.join(pub, formatUrl);
+                }
+
+                urls[format] = urls[format].replace(/\\/g, '/');
+
+                if (generatorConfiguration.dest) {
+                    this.emitFile(urls[format], res[format]);
+                } else {
+                    this.emitFile(formatUrl, res[format]);
+                }
             } else {
-                urls[format] = 'data:'
-                    + mimeTypes[format]
-                    + ';charset=utf-8;base64,'
-                    + (new Buffer(res[format]).toString('base64'));
+                urls[format] = 'data:' +
+                    mimeTypes[format] +
+                    ';charset=utf-8;base64,' +
+                    (Buffer.from(res[format]).toString('base64'));
             }
         }
         cb(null, res.generateCss(urls));
