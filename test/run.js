@@ -4,6 +4,7 @@ var webpack = require('webpack');
 var config = require("./webpack.config.js");
 
 var compiler = webpack(config);
+
 console.log('Compilation started...');
 compiler.run(function() {
     console.log('Completed.');

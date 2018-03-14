@@ -183,7 +183,7 @@ module.exports = function (content) {
                 let formatUrl = loaderUtils.interpolateName(this,
                     filename,
                     {
-                        context: this.options.context || this.context,
+                        context: this.rootContext || this.context,
                         content: res[format]
                     }
                 );
