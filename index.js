@@ -153,11 +153,9 @@ module.exports = function (content) {
     let cb = this.async();
 
     // Generate destination path for font files, dest option from options takes precedence
-    let opts = this.options || {};
+    let opts = this.options || this._compilation.options || {};
 
-    let pub = (
-        generatorConfiguration.dest || (opts.output && opts.output.publicPath) || '/'
-    );
+    let pub = (opts.output && opts.output.publicPath) || '/';
     let embed = !!params.embed;
 
     if (generatorConfiguration.cssTemplate) {
